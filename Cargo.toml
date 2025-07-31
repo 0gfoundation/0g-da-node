@@ -21,7 +21,7 @@ contract-interface = { path = "./contract-interface" }
 chain-state = { path = "./chain-state" }
 storage = { path = "./storage" }
 utils = { path = "./utils" }
-client = { paht = "./client" }
+client = { path = "./client" }
 chain-utils = { path = "./chain-utils"}
 da-miner = { path = "./da-miner" }
 pruner = { path = "./pruner" }
