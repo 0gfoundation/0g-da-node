@@ -82,6 +82,50 @@ fn epoch_registration_hash(signer_address: H160, epoch: u64, chain_id: u64) -> G
 }
 
 impl ChainState {
+    pub async fn check_staked(&self, amount_to_stake: U256) -> Result<()> {
+        let staked = self.da_registry.staked(self.signer_address).call().await?;
+        if staked < amount_to_stake {
+            let to_stake = amount_to_stake - staked;
+            let maybe_input_data = self.da_registry.stake().calldata();
+            if let Some(input_data) = maybe_input_data {
+                info!(
+                    "staking amount {:?} for account {:?}",
+                    self.signer_address, to_stake
+                );
+                let tx_request = TransactionRequest::new()
+                    .to(self.da_registry.address())
+                    .value(to_stake)
+                    .data(input_data);
+                match self
+                    .transactor
+                    .lock()
+                    .await
+                    .send(
+                        tx_request,
+                        TransactionInfo::Stake(self.signer_address, to_stake),
+                    )
+                    .await
+                {
+                    Ok(success) => {
+                        if success {
+                            info!(
+                                "staked {:?} for account {:?}",
+                                to_stake, self.signer_address
+                            );
+                            sleep(Duration::from_secs(10)).await;
+                        } else {
+                            bail!(anyhow!("stake failed"));
+                        }
+                    }
+                    Err(e) => {
+                        bail!(anyhow!(e));
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub async fn check_signer_registration(
         &self,
         signer_bls_private_key: Fr,

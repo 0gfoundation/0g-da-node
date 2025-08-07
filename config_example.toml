@@ -19,6 +19,8 @@ da_entrance_address = ""
 # deployed block number of da entrance contract
 start_block_number = 0
 
+# amount to stake in DA contract (in 0G)
+amount_to_stake = 1000
 # signer BLS private key
 signer_bls_private_key = ""
 # signer eth account private key

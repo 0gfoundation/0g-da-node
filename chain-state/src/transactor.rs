@@ -1,7 +1,7 @@
 use anyhow::{anyhow, bail, Result};
 
 use chain_utils::DefaultMiddleware;
-use ethers::types::H160;
+use ethers::types::{H160, U256};
 use ethers::{
     providers::Middleware,
     signers::{LocalWallet, Signer},
@@ -13,6 +13,7 @@ pub enum TransactionInfo {
     RegisterSigner(H160),
     RegisterEpoch(H160, u64),
     UpdateSocket(H160, String),
+    Stake(H160, U256),
 }
 
 pub struct Transactor {

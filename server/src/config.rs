@@ -6,7 +6,7 @@ use ark_bn254::Fr;
 use config::ConfigError::NotFound;
 use ethers::{
     abi::Address,
-    types::{H160, H256},
+    types::{H160, H256, U256},
 };
 
 mod cli {
@@ -88,6 +88,7 @@ pub struct Config {
     pub enable_das: bool,
     pub das_test: bool,
     pub prometheus_exporter_address: String,
+    pub amount_to_stake: U256,
 }
 
 impl Config {
@@ -127,6 +128,7 @@ impl Config {
             },
             data_path: c.get_string("data_path")?,
             prometheus_exporter_address: c.get_string("prometheus_exporter_address")?,
+            amount_to_stake: U256::from(c.get_u64("amount_to_stake")?) * U256::exp10(18),
         })
     }
 }

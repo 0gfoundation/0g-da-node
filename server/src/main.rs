@@ -71,6 +71,7 @@ async fn setup_chain_state(ctx: &Context) -> Result<Arc<ChainState>> {
         )
         .await?,
     );
+    chain_state.check_staked(ctx.config.amount_to_stake).await?;
     chain_state
         .check_signer_registration(
             ctx.config.signer_bls_private_key,
