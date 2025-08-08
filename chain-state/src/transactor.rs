@@ -14,6 +14,7 @@ pub enum TransactionInfo {
     RegisterEpoch(H160, u64),
     UpdateSocket(H160, String),
     Stake(H160, U256),
+    SyncFixedTimes(U256),
 }
 
 pub struct Transactor {

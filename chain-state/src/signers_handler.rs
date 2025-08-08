@@ -21,6 +21,7 @@ use utils::{left_pad_zeros, map_to_g1, metrics};
 use crate::{transactor::TransactionInfo, ChainState};
 
 const PUBKEY_REGISTRATION_DOMAIN: &[u8] = "0G_BN254_Pubkey_Registration".as_bytes();
+const MAX_SYNC_TIMES: u64 = 10;
 
 pub fn serialize_g1_point(point: G1Affine) -> G1Point {
     let mut value: Vec<u8> = Vec::new();
@@ -316,6 +317,7 @@ async fn check_epoch(chain_state: Arc<ChainState>, signer_bls_private_key: Fr) -
                 check_new_quorums(chain_state.clone(), epoch).await?;
                 check_new_registration(chain_state.clone(), signer_bls_private_key, epoch + 1)
                     .await?;
+                check_sample_round(chain_state.clone(), U256::from(bn.as_u64())).await?;
                 Ok(())
             } else {
                 bail!(anyhow!("block number is empty"));
@@ -325,6 +327,45 @@ async fn check_epoch(chain_state: Arc<ChainState>, signer_bls_private_key: Fr) -
             bail!(anyhow!("finalized block returns None"));
         }
     }
+}
+
+async fn check_sample_round(chain_state: Arc<ChainState>, latest_block: U256) -> Result<()> {
+    let next_sample_height = chain_state.da_entrance.next_sample_height().call().await?;
+    if next_sample_height <= latest_block {
+        let sample_period = chain_state.da_entrance.sample_period().call().await?;
+        let times = ((latest_block - next_sample_height + 1) / sample_period)
+            .min(U256::from(MAX_SYNC_TIMES));
+        let maybe_input_data = chain_state.da_entrance.sync_fixed_times(times).calldata();
+        if let Some(input_data) = maybe_input_data {
+            info!(
+                "sync {:?} times to update sample round, next_sample_height: {:?}, latest_block: {:?}",
+                times, next_sample_height, latest_block
+            );
+            let tx_request = TransactionRequest::new()
+                .to(chain_state.da_entrance.address())
+                .data(input_data);
+            match chain_state
+                .transactor
+                .lock()
+                .await
+                .send(tx_request, TransactionInfo::SyncFixedTimes(times))
+                .await
+            {
+                Ok(success) => {
+                    if success {
+                        info!("synced {:?} times", times,);
+                        sleep(Duration::from_secs(10)).await;
+                    } else {
+                        bail!(anyhow!("sync_fixed_times failed"));
+                    }
+                }
+                Err(e) => {
+                    bail!(anyhow!(e));
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 async fn check_new_registration(
