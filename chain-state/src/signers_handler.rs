@@ -91,7 +91,7 @@ impl ChainState {
             if let Some(input_data) = maybe_input_data {
                 info!(
                     "staking amount {:?} for account {:?}",
-                    self.signer_address, to_stake
+                    to_stake, self.signer_address
                 );
                 let tx_request = TransactionRequest::new()
                     .to(self.da_registry.address())
