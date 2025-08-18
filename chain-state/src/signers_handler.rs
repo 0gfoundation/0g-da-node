@@ -333,7 +333,7 @@ async fn check_sample_round(chain_state: Arc<ChainState>, latest_block: U256) ->
     let next_sample_height = chain_state.da_entrance.next_sample_height().call().await?;
     if next_sample_height <= latest_block {
         let sample_period = chain_state.da_entrance.sample_period().call().await?;
-        let times = ((latest_block - next_sample_height + 1) / sample_period)
+        let times = ((latest_block - next_sample_height) / sample_period + 1)
             .min(U256::from(MAX_SYNC_TIMES));
         let maybe_input_data = chain_state.da_entrance.sync_fixed_times(times).calldata();
         if let Some(input_data) = maybe_input_data {

@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
+use chain_state::transactor::{TransactionInfo, Transactor};
 use chain_utils::{DefaultMiddleware, DefaultMiddlewareInner};
 use contract_interface::{da_sample::SampleResponse, DASample};
-use ethers::{abi::Address, contract::ContractCall, providers::PendingTransaction, utils::hex};
+use ethers::{abi::Address, types::TransactionRequest, utils::hex};
 use task_executor::TaskExecutor;
-use tokio::sync::{broadcast, mpsc};
+use tokio::sync::{broadcast, mpsc, Mutex};
 
 use crate::watcher::OnChainChangeMessage;
 
@@ -10,6 +13,7 @@ pub struct DasSubmitter {
     da_contract: DASample<DefaultMiddlewareInner>,
     on_chain_receiver: broadcast::Receiver<OnChainChangeMessage>,
     submission_receiver: mpsc::UnboundedReceiver<SampleResponse>,
+    transactor: Arc<Mutex<Transactor>>,
 }
 
 impl DasSubmitter {
@@ -18,6 +22,7 @@ impl DasSubmitter {
         provider: DefaultMiddleware,
         on_chain_receiver: broadcast::Receiver<OnChainChangeMessage>,
         submission_receiver: mpsc::UnboundedReceiver<SampleResponse>,
+        transactor: Arc<Mutex<Transactor>>,
         da_address: Address,
     ) {
         let da_contract = DASample::new(da_address, provider.clone());
@@ -25,6 +30,7 @@ impl DasSubmitter {
             da_contract,
             submission_receiver,
             on_chain_receiver,
+            transactor,
         };
         executor.spawn(
             async move { Box::pin(submitter.start()).await },
@@ -105,30 +111,33 @@ impl DasSubmitter {
             return Err(());
         }
 
-        let submission_call: ContractCall<_, _> =
-            self.da_contract.submit_sampling_response(response).legacy();
-        debug!(transaction = ?submission_call.tx, "Construct transaction");
-
-        let estimate_gas = submission_call.estimate_gas().await;
-        debug!(result = ?estimate_gas, "Estimate gas");
-
-        let pending_transaction: PendingTransaction<'_, _> =
-            submission_call.send().await.map_err(|e| {
-                warn!(error = ?e, "Fail to send sample response transaction");
-            })?;
-        debug!(hash = ?pending_transaction.tx_hash(), "Send sample transaction");
-
-        let receipt = pending_transaction
-            .await
-            .map_err(|error| {
-                warn!(?error, "Fail to execute sample transaction");
-            })?
-            .ok_or_else(|| {
-                warn!("Transaction not executed after 3 retires");
-            })?;
-
-        info!("Submit response success");
-        debug!(?receipt, "Receipt");
+        if let Some(input_data) = self
+            .da_contract
+            .submit_sampling_response(response)
+            .calldata()
+        {
+            let tx_request = TransactionRequest::new()
+                .to(self.da_contract.address())
+                .data(input_data);
+            match self
+                .transactor
+                .lock()
+                .await
+                .send(tx_request, TransactionInfo::SubmitSamplingResponse)
+                .await
+            {
+                Ok(success) => {
+                    if success {
+                        info!("Submit response success");
+                    } else {
+                        warn!("Submit response transaction failed");
+                    }
+                }
+                Err(e) => {
+                    warn!("Submit response failed: {:?}", e);
+                }
+            }
+        }
         Ok(())
     }
 }

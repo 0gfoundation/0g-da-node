@@ -89,6 +89,7 @@ pub struct Config {
     pub das_test: bool,
     pub prometheus_exporter_address: String,
     pub amount_to_stake: U256,
+    pub min_gas_price: U256,
 }
 
 impl Config {
@@ -129,6 +130,7 @@ impl Config {
             data_path: c.get_string("data_path")?,
             prometheus_exporter_address: c.get_string("prometheus_exporter_address")?,
             amount_to_stake: U256::from(c.get_u64("amount_to_stake")?) * U256::exp10(18),
+            min_gas_price: U256::from_dec_str(&c.get_string("min_gas_price")?)?,
         })
     }
 }

@@ -20,8 +20,9 @@ impl Context {
             chain_utils::make_provider(&config.eth_rpc_url, &config.signer_eth_private_key)
                 .await
                 .unwrap();
-        let transactor: Arc<Mutex<Transactor>> =
-            Arc::new(Mutex::new(Transactor::new(provider.clone()).unwrap()));
+        let transactor: Arc<Mutex<Transactor>> = Arc::new(Mutex::new(
+            Transactor::new(provider.clone(), config.min_gas_price).unwrap(),
+        ));
         // db
         let db = Arc::new(RwLock::new(Storage::new(&config.data_path).unwrap()));
 

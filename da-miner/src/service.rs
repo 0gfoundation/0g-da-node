@@ -1,11 +1,12 @@
 use std::sync::Arc;
 
+use chain_state::transactor::Transactor;
 use chain_utils::DefaultMiddleware;
 use contract_interface::da_sample::SampleResponse;
 use ethers::types::Address;
 use storage::Storage;
 use task_executor::TaskExecutor;
-use tokio::sync::{broadcast, mpsc, RwLock};
+use tokio::sync::{broadcast, mpsc, Mutex, RwLock};
 
 use crate::{
     line_candidate::LineCandidate, mock_data::store_mock_data, stage1::DasStage1Miner,
@@ -21,6 +22,7 @@ impl DasMineService {
         da_address: Address,
         das_test: bool,
         store: Arc<RwLock<Storage>>,
+        transactor: Arc<Mutex<Transactor>>,
     ) -> Result<(), String> {
         info_span!("start_mine_service");
 
@@ -62,6 +64,7 @@ impl DasMineService {
             provider.clone(),
             on_chain_receiver.resubscribe(),
             submission_receiver,
+            transactor,
             da_address,
         );
 

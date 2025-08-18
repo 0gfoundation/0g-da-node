@@ -15,18 +15,21 @@ pub enum TransactionInfo {
     UpdateSocket(H160, String),
     Stake(H160, U256),
     SyncFixedTimes(U256),
+    SubmitSamplingResponse,
 }
 
 pub struct Transactor {
     signer: LocalWallet,
     client: DefaultMiddleware,
+    min_gas_price: U256,
 }
 
 impl Transactor {
-    pub fn new(middleware: DefaultMiddleware) -> Result<Self> {
+    pub fn new(middleware: DefaultMiddleware, min_gas_price: U256) -> Result<Self> {
         Ok(Self {
             signer: middleware.signer().clone(),
             client: middleware,
+            min_gas_price,
         })
     }
 
@@ -36,7 +39,9 @@ impl Transactor {
 
     // return continue(true) or break(false)
     fn handle_send_error(&self, e_str: &str, tx_info: TransactionInfo) -> bool {
-        if e_str.contains("max fee per gas less than block base fee") {
+        if e_str.contains("max fee per gas less than block base fee")
+            || e_str.contains("replacement transaction underpriced")
+        {
             info!("gas price too low, resending..");
             return true;
         }
@@ -59,8 +64,11 @@ impl Transactor {
         tx_no_sender: TransactionRequest,
         tx_info: TransactionInfo,
     ) -> Result<bool> {
-        let tx = tx_no_sender.clone().from(self.signer.address());
+        let mut tx = tx_no_sender.clone().from(self.signer.address());
+        let mut gas_price = self.client.get_gas_price().await?.max(self.min_gas_price);
         loop {
+            gas_price = gas_price * 101 / 100;
+            tx = tx.gas_price(gas_price);
             match self.client.send_transaction(tx.clone(), None).await {
                 Ok(pending_tx) => {
                     let hash = pending_tx.tx_hash();

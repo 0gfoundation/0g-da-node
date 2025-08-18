@@ -9,6 +9,7 @@ use std::{error::Error, net::SocketAddr, str::FromStr, sync::Arc};
 
 use anyhow::{anyhow, Result};
 
+use chain_state::transactor::Transactor;
 use chain_state::{
     da_handler::start_da_monitor, signers_handler::start_epoch_registration, ChainState,
 };
@@ -20,6 +21,7 @@ use pruner::run_pruner;
 use prometheus_exporter::Exporter;
 use runtime::Environment;
 use task_executor::TaskExecutor;
+use tokio::sync::Mutex;
 use tracing::Level;
 use tracing_subscriber::EnvFilter;
 
@@ -97,12 +99,16 @@ async fn start_das_service(executor: TaskExecutor, ctx: &Context) {
     let provider = make_provider(&ctx.config.eth_rpc_url, &ctx.config.miner_eth_private_key)
         .await
         .unwrap();
+    let transactor: Arc<Mutex<Transactor>> = Arc::new(Mutex::new(
+        Transactor::new(provider.clone(), ctx.config.min_gas_price).unwrap(),
+    ));
     DasMineService::spawn(
         executor,
         provider,
         ctx.config.da_entrance_address,
         ctx.config.das_test,
         ctx.db.clone(),
+        transactor,
     )
     .await
     .unwrap();

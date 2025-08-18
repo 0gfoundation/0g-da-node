@@ -27,6 +27,8 @@ signer_bls_private_key = ""
 signer_eth_private_key = ""
 # miner eth account private key, (could be the same as `signer_eth_private_key`, but not recommended)
 miner_eth_private_key = ""
+# mininum gas price used for sending transactions
+min_gas_price = "10000000000"
 
 # whether to enable data availability sampling
 enable_das = "true"
