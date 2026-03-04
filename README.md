@@ -20,13 +20,13 @@ Across the two sets of nodes, 0G DA supports the following features:
 - **Quorum-based and Sampling-basedVerification**: Small groups of DA nodes work together to check and efficiently verify stored data.
 - **Separate Validator Network**: Validators finalize proofs submitted by DA nodes.
 
-For in-depth technical details about 0G DA, please read our [Intro to 0G DA](https://docs.0g.ai/da/0g-da).
+For in-depth technical details about 0G DA, please read our [Intro to 0G DA](https://docs.0g.ai/concepts/da).
 
 ## Documentation
 
 - If you want to run a node, please refer to the [Running a Node](https://docs.0g.ai/run-a-node/da-node) guide.
-- If you learn more about 0G DA, please refer to the [0G DA Technical Deepdive](https://docs.0g.ai/da/0g-da-deep-dive) guide.
-- If you want build a rollup with 0G, please refer to the [Building a Rollup](https://docs.0g.ai/build-with-0g/rollups-and-appchains/op-stack-on-0g-da) guide.
+- If you learn more about 0G DA, please refer to the [0G DA Technical Deep Dive](https://docs.0g.ai/developer-hub/building-on-0g/da-deep-dive) guide.
+- If you want build a rollup with 0G, please refer to the [OP Stack Rollup](https://docs.0g.ai/build-with-0g/rollups-and-appchains/op-stack-on-0g-da) or [Nitro Rollup](https://docs.0g.ai/developer-hub/building-on-0g/rollups-and-appchains/arbitrum-nitro-on-0g-da) guides.
 
 ## Support and Additional Resources
 We want to do everything we can to help you be successful while working on your contribution and projects. Here you'll find various resources and communities that may help you complete a project or contribute to 0G. 
