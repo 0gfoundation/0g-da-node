@@ -15,6 +15,7 @@ use prost::Message;
 use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use signer::{BatchRetrieveReply, BatchRetrieveRequest, Empty, Slices};
 use std::sync::Arc;
+use std::collections::HashSet;
 use std::time::{Duration, Instant};
 use storage::blob_status_db::{BlobStatus, BlobStatusDB};
 use storage::quorum_db::{AssignedSlices, QuorumDB};
@@ -76,12 +77,34 @@ impl SignerService {
         *cnt -= 1;
     }
 
-    async fn batch_sign_inner(
+async fn batch_sign_inner(
         &self,
         request: Request<BatchSignRequest>,
     ) -> Result<Response<BatchSignReply>, Status> {
         let remote_addr = request.remote_addr();
         let request_content = request.into_inner();
+
+        // --- DoS Mitigation Start ---
+        const MAX_BATCH_SIZE: usize = 100;
+        if request_content.requests.len() > MAX_BATCH_SIZE {
+            return Err(Status::new(
+                Code::InvalidArgument,
+                format!("Batch size exceeds limit of {} items", MAX_BATCH_SIZE),
+            ));
+        }
+
+        // Deduplication: prevent the same storage_root from being processed multiple times in one batch
+        let mut seen_roots = std::collections::HashSet::new();
+        for req in &request_content.requests {
+            if !seen_roots.insert(req.storage_root.clone()) {
+                return Err(Status::new(
+                    Code::InvalidArgument,
+                    "Duplicate storage_root detected in batch",
+                ));
+            }
+        }
+        // --- DoS Mitigation End ---
+
         metrics::GRPC_REQ_GAUGE.set(request_content.encoded_len() as f64);
         let ts = Instant::now();
 
@@ -144,6 +167,7 @@ impl SignerService {
         info!("responsed in {:?} ms", ts.elapsed().as_millis());
         Ok(Response::new(reply))
     }
+
 
     async fn batch_retrieve_inner(
         &self,
