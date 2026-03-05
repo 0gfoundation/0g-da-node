@@ -1,6 +1,7 @@
 use std::{collections::BTreeSet, iter::once};
 
-use crate::COL_SLICE;
+// Added COL_BLOB_STATUS here
+use crate::{COL_SLICE, COL_BLOB_STATUS};
 
 use super::Storage;
 use anyhow::{bail, Result};
@@ -241,11 +242,17 @@ impl SliceDB for Storage {
         let blob_prefix: Vec<u8> = once(BLOB_PREFIX).chain(epoch.to_be_bytes()).collect();
         let slice_prefix: Vec<u8> = once(SLICE_PREFIX).chain(epoch.to_be_bytes()).collect();
         let data_prefix: Vec<u8> = once(DATA_PREFIX).chain(epoch.to_be_bytes()).collect();
+        
+        // Added this line to create the status prefix
+        let blob_status_prefix: Vec<u8> = epoch.to_be_bytes().to_vec();
 
         let mut tx = self.db.transaction();
         tx.delete_prefix(COL_SLICE, &blob_prefix);
         tx.delete_prefix(COL_SLICE, &slice_prefix);
         tx.delete_prefix(COL_SLICE, &data_prefix);
+        
+        // Added this line to prune COL_BLOB_STATUS
+        tx.delete_prefix(COL_BLOB_STATUS, &blob_status_prefix);
 
         self.db.write(tx)?;
         Ok(())
