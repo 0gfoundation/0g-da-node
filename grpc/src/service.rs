@@ -316,6 +316,17 @@ impl SignerService {
         req: &SignRequest,
         storage_root: [u8; 32],
     ) -> Result<(), Status> {
+        // --- Added Epoch Validation ---
+        let current_epoch = self.chain_state.da_signers.epoch_number().call().await
+            .map_err(|e| Status::new(Code::Internal, e.to_string()))?.as_u64();
+        let epoch_window_size = self.chain_state.da_entrance.epoch_window_size().call().await
+            .map_err(|e| Status::new(Code::Internal, e.to_string()))?.as_u64();
+
+        if req.epoch + epoch_window_size < current_epoch {
+            return Err(Status::new(Code::InvalidArgument, "epoch too old"));
+        }
+        // ------------------------------
+
         let maybe_blob_status = self
             .db
             .read()

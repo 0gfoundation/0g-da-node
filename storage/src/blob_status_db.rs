@@ -38,6 +38,8 @@ pub trait BlobStatusDB {
         quorum_id: u64,
         storage_root: [u8; 32],
     ) -> Result<Option<BlobStatus>>;
+    // Added prune method to trait
+    async fn prune(&self, epoch: u64) -> Result<()>;
 }
 
 fn get_blob_key(epoch: u64, quorum_id: u64, storage_root: [u8; 32]) -> Vec<u8> {
@@ -79,5 +81,14 @@ impl BlobStatusDB for Storage {
             return Ok(Some(status));
         }
         Ok(None)
+    }
+
+    // Added implementation of prune
+    async fn prune(&self, epoch: u64) -> Result<()> {
+        let prefix: Vec<u8> = epoch.to_be_bytes().to_vec();
+        let mut tx = self.db.transaction();
+        tx.delete_prefix(COL_BLOB_STATUS, &prefix);
+        self.db.write(tx)?;
+        Ok(())
     }
 }

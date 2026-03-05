@@ -94,6 +94,10 @@ async fn check_data_logs(chain_state: Arc<ChainState>, from: u64, to: u64) -> Re
 }
 
 async fn check_data_upload(chain_state: Arc<ChainState>, l: u64, r: u64) -> Result<()> {
+    // Fetch epoch info to validate window
+    let current_epoch = chain_state.da_signers.epoch_number().call().await?.as_u64();
+    let epoch_window_size = chain_state.da_entrance.epoch_window_size().call().await?.as_u64();
+
     let filter: ethers::types::Filter = chain_state
         .da_entrance
         .data_upload_filter()
@@ -101,6 +105,7 @@ async fn check_data_upload(chain_state: Arc<ChainState>, l: u64, r: u64) -> Resu
         .to_block(r)
         .address(chain_state.da_entrance.address().into())
         .filter;
+
     for log in chain_state.provider.get_logs(&filter).await? {
         match DataUploadFilter::decode_log(&RawLog {
             topics: log.topics,
@@ -108,6 +113,12 @@ async fn check_data_upload(chain_state: Arc<ChainState>, l: u64, r: u64) -> Resu
         }) {
             Ok(event) => {
                 let epoch = event.epoch.as_u64();
+                
+                // Skip if epoch is too old (already pruned or will be soon)
+                if epoch + epoch_window_size < current_epoch {
+                    continue;
+                }
+
                 let quorum_id = event.quorum_id.as_u64();
                 let maybe_blob_status = chain_state
                     .db
@@ -140,6 +151,10 @@ async fn check_data_upload(chain_state: Arc<ChainState>, l: u64, r: u64) -> Resu
 }
 
 async fn check_data_verified(chain_state: Arc<ChainState>, l: u64, r: u64) -> Result<()> {
+    // Fetch epoch info to validate window
+    let current_epoch = chain_state.da_signers.epoch_number().call().await?.as_u64();
+    let epoch_window_size = chain_state.da_entrance.epoch_window_size().call().await?.as_u64();
+
     let filter: ethers::types::Filter = chain_state
         .da_entrance
         .erasure_commitment_verified_filter()
@@ -147,6 +162,7 @@ async fn check_data_verified(chain_state: Arc<ChainState>, l: u64, r: u64) -> Re
         .to_block(r)
         .address(chain_state.da_entrance.address().into())
         .filter;
+
     for log in chain_state.provider.get_logs(&filter).await? {
         match ErasureCommitmentVerifiedFilter::decode_log(&RawLog {
             topics: log.topics,
@@ -154,6 +170,12 @@ async fn check_data_verified(chain_state: Arc<ChainState>, l: u64, r: u64) -> Re
         }) {
             Ok(event) => {
                 let epoch = event.epoch.as_u64();
+
+                // Skip if epoch is too old
+                if epoch + epoch_window_size < current_epoch {
+                    continue;
+                }
+
                 let quorum_id = event.quorum_id.as_u64();
                 let maybe_blob_status = chain_state
                     .db
